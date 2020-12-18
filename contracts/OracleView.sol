@@ -2,7 +2,7 @@ pragma solidity ^0.6.10;
 pragma experimental ABIEncoderV2;
 
 import "./OpenOraclePriceData.sol";
-import "./verifier.sol";
+import "./Verifier.sol";
 
 struct Observation {
     uint timestamp;
