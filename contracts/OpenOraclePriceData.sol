@@ -44,16 +44,20 @@ contract OpenOraclePriceData is OpenOracleData {
      * @param signature The cryptographic signature of the message payload, authorizing the source to write
      * @return The keys that were written
      */
-    function put(bytes calldata message, bytes calldata signature, Proof proof, PublicInput input) external returns (string memory) {
-        require(message.min == input[1],
+    function put(bytes calldata message, bytes calldata signature, Proof proof, PublicInput input) external returns (string memory) {        
+        (address source,
+        uint64 timestamp,
+        string memory key,
+        uint64 min,
+        uint64 max) = decodeMessage(message, signature);
+        require(min == input[1],
             "Minimum Price mis-match");
-        require(message.max == input[2],
+        require(max == input[2],
             "Maximum Price mis-match");
-        
+
         // proof verification (gas benchmarking will be required)
         require(verifier.verifyTx(proof.a, proof.b, proof.c, input),
             "Invalid proof");
-        (address source, uint64 timestamp, string memory key, uint64 min, uint64 max) = decodeMessage(message, signature);
         return putInternal(source, timestamp, key, min, max);
     }
 
