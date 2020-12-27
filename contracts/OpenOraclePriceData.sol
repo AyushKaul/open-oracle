@@ -3,6 +3,7 @@
 pragma solidity ^0.6.10;
 
 import "./OpenOracleData.sol";
+import "./Verifier.sol";
 
 /**
  * @title The Open Oracle Price Data Contract
@@ -29,8 +30,10 @@ contract OpenOraclePriceData is OpenOracleData {
     }
 
     struct PublicInput {
-        uint[3] in;
+        uint[3] inp;
     }
+
+    Verifier public immutable verifier;
 
     /**
      * @dev The most recent authenticated data from all sources.
@@ -38,27 +41,35 @@ contract OpenOraclePriceData is OpenOracleData {
      */
     mapping(address => mapping(string => Datum)) private data;
 
+    constructor(Verifier verifier_) public {
+        verifier = verifier_;
+    }
+
     /**
      * @notice Write a bunch of signed datum to the authenticated storage mapping
      * @param message The payload containing the timestamp, and (key, min, max) pairs
      * @param signature The cryptographic signature of the message payload, authorizing the source to write
      * @return The keys that were written
      */
-    function put(bytes calldata message, bytes calldata signature, Proof proof, PublicInput input) external returns (string memory) {        
-        (address source,
-        uint64 timestamp,
-        string memory key,
-        uint64 min,
-        uint64 max) = decodeMessage(message, signature);
-        require(min == input[1],
-            "Minimum Price mis-match");
-        require(max == input[2],
-            "Maximum Price mis-match");
+    function put(
+        bytes calldata message,
+        bytes calldata signature,
+        Proof proof,
+        PublicInput input) external returns (string memory) { 
+            (address source,
+            uint64 timestamp,
+            string memory key,
+            uint64 min,
+            uint64 max) = decodeMessage(message, signature);
+            require(min == input[1],
+                "Minimum Price mis-match");
+            require(max == input[2],
+                "Maximum Price mis-match");
 
-        // proof verification (gas benchmarking will be required)
-        require(verifier.verifyTx(proof.a, proof.b, proof.c, input),
-            "Invalid proof");
-        return putInternal(source, timestamp, key, min, max);
+            // proof verification (gas benchmarking will be required)
+            require(verifier.verifyTx(proof.a, proof.b, proof.c, input),
+                "Invalid proof");
+            return putInternal(source, timestamp, key, min, max);
     }
 
     function putInternal(address source, uint64 timestamp, string memory key, uint64 min, uint64 max) internal returns (string memory) {
@@ -73,14 +84,18 @@ contract OpenOraclePriceData is OpenOracleData {
         return key;
     }
 
-    function decodeMessage(bytes calldata message, bytes calldata signature) internal pure returns (address, uint64, string memory, uint64, uint64) {
-        // Recover the source address
-        address source = source(message, signature);
+    function decodeMessage(
+        bytes calldata message,
+        bytes calldata signature) internal pure returns (address, uint64, string memory, uint64, uint64) {
+            // Recover the source address
+            address source = source(message, signature);
 
-        // Decode the message and check the kind
-        (string memory kind, uint64 timestamp, string memory key, uint64 min, uint64 max) = abi.decode(message, (string, uint64, string, uint64, uint64));
-        require(keccak256(abi.encodePacked(kind)) == keccak256(abi.encodePacked("prices")), "Kind of data must be 'prices'");
-        return (source, timestamp, key, min, max);
+            // Decode the message and check the kind
+            (string memory kind, uint64 timestamp, string memory key, uint64 min, uint64 max) = 
+                abi.decode(message, (string, uint64, string, uint64, uint64));
+            require(keccak256(abi.encodePacked(kind)) == keccak256(abi.encodePacked("prices")),
+                "Kind of data must be 'prices'");
+            return (source, timestamp, key, min, max);
     }
 
     /**

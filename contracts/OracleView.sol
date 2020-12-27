@@ -25,6 +25,8 @@ contract OracleView {
     /// @notice The Open Oracle Price Data contract
     OpenOraclePriceData public immutable priceData;
 
+    Verifier public immutable verifier;
+
     /// @notice The number of wei in 1 ETH
     uint public constant ethBaseUnit = 1e18;
 
@@ -82,11 +84,9 @@ contract OracleView {
      * @param configs The static token configurations which define what prices are supported and how
      */
     constructor(OpenOraclePriceData priceData_,
-                address reporter_
-                Verifier verifier_) public {
+                address reporter_) public {
         priceData = priceData_;
         reporter = reporter_;
-        verifier = verifier_;
     }
 
     /**
@@ -96,13 +96,17 @@ contract OracleView {
      * @param signatures The signatures for the corresponding messages
      * @param symbols The symbols to compare to anchor for authoritative reading
      */
-    function postPrices(bytes[] calldata messages, bytes[] calldata signatures, string[] calldata symbols, Proof[] proofs, PublicInput[] inputs) external {
-        require(messages.length == signatures.length, "messages and signatures must be 1:1");
+    function postPrices(bytes[] calldata messages,
+        bytes[] calldata signatures,
+        string[] calldata symbols,
+        Proof[] proofs,
+        PublicInput[] inputs) external {
+            require(messages.length == signatures.length, "messages and signatures must be 1:1");
 
-        // Save the prices
-        for (uint i = 0; i < messages.length; i++) {
-            priceData.put(messages[i], signatures[i], proofs[i], inputs[i]);
-        }
+            // Save the prices
+            for (uint i = 0; i < messages.length; i++) {
+                priceData.put(messages[i], signatures[i], proofs[i], inputs[i]);
+            }
     }
 
     /**
