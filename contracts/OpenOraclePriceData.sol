@@ -1,9 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0
 
 pragma solidity ^0.6.10;
+pragma experimental ABIEncoderV2;
 
 import "./OpenOracleData.sol";
 import "./Verifier.sol";
+
+struct Proof {
+    uint[2] a;
+    uint[2][2] b;
+    uint[2] c;
+}
+
+struct PublicInput {
+    uint[3] inp;
+}
 
 /**
  * @title The Open Oracle Price Data Contract
@@ -21,16 +32,6 @@ contract OpenOraclePriceData is OpenOracleData {
         uint64 timestamp;
         uint64 min;
         uint64 max;
-    }
-
-    struct Proof {
-    uint[2] a;
-    uint[2][2] b;
-    uint[2] c;
-    }
-
-    struct PublicInput {
-        uint[3] inp;
     }
 
     Verifier public immutable verifier;
@@ -54,20 +55,20 @@ contract OpenOraclePriceData is OpenOracleData {
     function put(
         bytes calldata message,
         bytes calldata signature,
-        Proof proof,
-        PublicInput input) external returns (string memory) { 
+        Proof calldata proof,
+        PublicInput calldata pubIn) external returns (string memory) { 
             (address source,
             uint64 timestamp,
             string memory key,
             uint64 min,
             uint64 max) = decodeMessage(message, signature);
-            require(min == input[1],
+            require(min == pubIn.inp[1],
                 "Minimum Price mis-match");
-            require(max == input[2],
+            require(max == pubIn.inp[2],
                 "Maximum Price mis-match");
 
             // proof verification (gas benchmarking will be required)
-            require(verifier.verifyTx(proof.a, proof.b, proof.c, input),
+            require(verifier.verifyTx(proof.a, proof.b, proof.c, pubIn.inp),
                 "Invalid proof");
             return putInternal(source, timestamp, key, min, max);
     }
@@ -110,12 +111,12 @@ contract OpenOraclePriceData is OpenOracleData {
     }
 
     /**
-     * @notice Read only the value for a single key from an authenticated source
+     * @notice Read only the range of credit score (cs) for a single key from an authenticated source
      * @param source The verifiable author of the data
      * @param key The selector for the value to return (symbol in case of uniswap)
-     * @return The price value (defaults to (0, 0))
+     * @return The credit score range values (defaults to (0, 0))
      */
-    function getPriceRange(address source, string calldata key) external view returns (uint64, uint64) {
+    function getCSRange(address source, string calldata key) external view returns (uint64, uint64) {
         return (data[source][key].min, data[source][key].max);
     }
 }

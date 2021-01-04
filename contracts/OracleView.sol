@@ -3,20 +3,11 @@ pragma experimental ABIEncoderV2;
 
 import "./OpenOraclePriceData.sol";
 import "./Verifier.sol";
+import "./Uniswap/UniswapLib.sol";
 
 struct Observation {
     uint timestamp;
     uint acc;
-}
-
-struct Proof {
-    uint[2] a;
-    uint[2][2] b;
-    uint[2] c;
-}
-
-struct PublicInput {
-    uint[3] in;
 }
 
 contract OracleView {
@@ -24,8 +15,6 @@ contract OracleView {
 
     /// @notice The Open Oracle Price Data contract
     OpenOraclePriceData public immutable priceData;
-
-    Verifier public immutable verifier;
 
     /// @notice The number of wei in 1 ETH
     uint public constant ethBaseUnit = 1e18;
@@ -35,15 +24,6 @@ contract OracleView {
 
     /// @notice The Open Oracle Reporter
     address public immutable reporter;
-
-    /// @notice The highest ratio of the new price to the anchor price that will still trigger the price to be updated
-    uint public immutable upperBoundAnchorRatio;
-
-    /// @notice The lowest ratio of the new price to the anchor price that will still trigger the price to be updated
-    uint public immutable lowerBoundAnchorRatio;
-
-    /// @notice The minimum amount of time in seconds required for the old uniswap price accumulator to be replaced
-    uint public immutable anchorPeriod;
 
     /// @notice Official prices by symbol hash
     mapping(bytes32 => uint) public prices;
@@ -79,9 +59,7 @@ contract OracleView {
      * @notice Construct a uniswap anchored view for a set of token configurations
      * @dev Note that to avoid immature TWAPs, the system must run for at least a single anchorPeriod before using.
      * @param reporter_ The reporter whose prices are to be used
-     * @param anchorToleranceMantissa_ The percentage tolerance that the reporter may deviate from the uniswap anchor
-     * @param anchorPeriod_ The minimum amount of time required for the old uniswap price accumulator to be replaced
-     * @param configs The static token configurations which define what prices are supported and how
+     * @param priceData_ The address of the oracle data contract which is backing the view
      */
     constructor(OpenOraclePriceData priceData_,
                 address reporter_) public {
@@ -94,13 +72,11 @@ contract OracleView {
      * @dev We let anyone pay to post anything, but only prices from configured reporter will be stored in the view.
      * @param messages The messages to post to the oracle
      * @param signatures The signatures for the corresponding messages
-     * @param symbols The symbols to compare to anchor for authoritative reading
      */
     function postPrices(bytes[] calldata messages,
         bytes[] calldata signatures,
-        string[] calldata symbols,
-        Proof[] proofs,
-        PublicInput[] inputs) external {
+        Proof[] calldata proofs,
+        PublicInput[] calldata inputs) external {
             require(messages.length == signatures.length, "messages and signatures must be 1:1");
 
             // Save the prices
@@ -110,15 +86,15 @@ contract OracleView {
     }
 
     /**
-     * @notice Use priceData.getPriceRange() directly
+     * @notice Use priceData.getCSRange() directly
      * @param source The verifiable author of the data
      * @param key The selector for the value to return (symbol in case of uniswap)
      * @return Price range denominated in USD, with 6 decimals
      */
-    function price(address source, string calldata key) external view returns (uint) {
+    function price(address source, string calldata key) external view returns (uint64, uint64) {
         uint64 min;
         uint64 max;
-        (min, max) = getPriceRange(source, key);
+        (min, max) = priceData.getCSRange(source, key);
         return (min, max);
     }
 }

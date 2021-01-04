@@ -127,7 +127,7 @@ contract UniswapAnchoredView is UniswapConfig {
     }
 
     function priceInternal(TokenConfig memory config) internal view returns (uint) {
-        if (config.priceSource == PriceSource.REPORTER) return priceRanges[config.symbolHash];
+        if (config.priceSource == PriceSource.REPORTER) return priceRanges[config.symbolHash].min;
         if (config.priceSource == PriceSource.FIXED_USD) return config.fixedPrice;
         if (config.priceSource == PriceSource.FIXED_ETH) {
             uint usdPerEth = prices[ethHash];
@@ -156,20 +156,25 @@ contract UniswapAnchoredView is UniswapConfig {
      * @param signatures The signatures for the corresponding messages
      * @param symbols The symbols to compare to anchor for authoritative reading
      */
-    function postPrices(bytes[] calldata messages, bytes[] calldata signatures, string[] calldata symbols) external {
-        require(messages.length == signatures.length, "messages and signatures must be 1:1");
+    function postPrices(
+        bytes[] calldata messages,
+        bytes[] calldata signatures,
+        string[] calldata symbols,
+        Proof[] calldata proofs,
+        PublicInput[] calldata inputs) external {
+            require(messages.length == signatures.length, "messages and signatures must be 1:1");
 
-        // Save the prices
-        for (uint i = 0; i < messages.length; i++) {
-            priceData.put(messages[i], signatures[i]);
-        }
+            // Save the prices
+            for (uint i = 0; i < messages.length; i++) {
+                priceData.put(messages[i], signatures[i], proofs[i], inputs[i]);
+            }
 
-        uint ethPrice = fetchEthPrice();
+            uint ethPrice = fetchEthPrice();
 
-        // Try to update the view storage
-        for (uint i = 0; i < symbols.length; i++) {
-            postPriceInternal(symbols[i], ethPrice);
-        }
+            // Try to update the view storage
+            for (uint i = 0; i < symbols.length; i++) {
+                postPriceInternal(symbols[i], ethPrice);
+            }
     }
 
     function postPriceInternal(string memory symbol, uint ethPrice) internal {
@@ -179,7 +184,7 @@ contract UniswapAnchoredView is UniswapConfig {
         bytes32 symbolHash = keccak256(abi.encodePacked(symbol));
         uint reporterMinPrice;
         uint reporterMaxPrice;
-        (reporterMinPrice, reporterMaxPrice) = priceData.getPriceRange(reporter, symbol);
+        (reporterMinPrice, reporterMaxPrice) = priceData.getCSRange(reporter, symbol);
         uint anchorPrice;
         if (symbolHash == ethHash) {
             anchorPrice = ethPrice;
