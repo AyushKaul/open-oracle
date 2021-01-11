@@ -31,6 +31,10 @@ function numToHex(num) {
 	return web3.utils.numberToHex(num);
 }
 
+function hexToNumberString(num) {
+	return web3.utils.hexToNumberString(num);
+}
+
 function numToBigNum(num) {
 	return web3.utils.toBN(num);
 }
@@ -80,5 +84,6 @@ module.exports = {
   uint,
   keccak256,
   currentBlockTimestamp,
-  fixed
+  fixed,
+  hexToNumberString,
 };

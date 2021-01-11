@@ -62,9 +62,9 @@ contract OpenOraclePriceData is OpenOracleData {
             string memory key,
             uint64 min,
             uint64 max) = decodeMessage(message, signature);
-            require(min == pubIn.inp[1],
+            require(min == pubIn.inp[0],
                 "Minimum Price mis-match");
-            require(max == pubIn.inp[2],
+            require(max == pubIn.inp[1],
                 "Maximum Price mis-match");
 
             // proof verification (gas benchmarking will be required)
