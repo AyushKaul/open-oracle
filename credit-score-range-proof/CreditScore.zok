@@ -1,0 +1,4 @@
+def main(private field creditScore, field min, field max) -> bool:
+  assert(creditScore>min)
+  assert(creditScore<max)
+  return true
